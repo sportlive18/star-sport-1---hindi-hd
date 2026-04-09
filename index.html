@@ -168,42 +168,41 @@ line-height:1.6;
     streamUrl:"https://jiotvpllive.cdn.jio.com/bpk-tv/Star_Sports_HD1_Hindi_BTS/output/index.mpd",
     keyId:"400131994b445d8c8817202248760fda",
     key:"2d56cb6f07a75b9aff165d534ae2bfc4",
-    // Cookie directly hardcoded — no fetch needed
-    cookie:"__hdnea__=st=1775732710~exp=1775754310~acl=/*~hmac=ad94f6260ac6e609cc7fdb04c6b0447be91615cc343bffe62dbf98277dea80bf"
+    cookieUrl:"https://allrounder-live2.pages.dev/api/cookie.json"
   };
 
-  document.addEventListener("DOMContentLoaded", async () => {
+  document.addEventListener("DOMContentLoaded",async()=>{
 
     shaka.polyfill.installAll();
     if(!shaka.Player.isBrowserSupported()) return;
 
-    const video = document.getElementById("video");
-    const container = document.getElementById("player-container");
+    const video=document.getElementById("video");
+    const container=document.getElementById("player-container");
 
-    video.muted = true;
+    video.muted=true;
 
-    const player = new shaka.Player();
+    const player=new shaka.Player();
     await player.attach(video);
 
-    const ui = new shaka.ui.Overlay(player, container, video);
+    const ui=new shaka.ui.Overlay(player,container,video);
 
     ui.configure({
-      addBigPlayButton: true,
-      controlPanelElements: [
-        "mute",
-        "play_pause",
-        "time_and_duration",
-        "spacer",
-        "quality",
-        "picture_in_picture",
-        "fullscreen"
-      ],
-      seekBarColors: {
-        base: "white",
-        buffered: "red",
-        played: "green"
-      }
-    });
+  addBigPlayButton: true,
+  controlPanelElements: [
+    "mute",           // First - volume/mute button
+    "play_pause",     // Second - play/pause button  
+    "time_and_duration", // Third - timeline timings (00:00 / 00:00)
+    "spacer",
+    "quality",
+    "picture_in_picture",
+    "fullscreen"
+  ],
+  seekBarColors: {
+    base: "white",
+    buffered: "red", 
+    played: "green"
+  }
+});
 
     player.configure({
       drm:{clearKeys:{[CONFIG.keyId]:CONFIG.key}},
@@ -216,33 +215,38 @@ line-height:1.6;
       }
     });
 
-    // Use hardcoded cookie directly
-    const cookieValue = CONFIG.cookie;
+    let cookieValue="";
+
+    try{
+      const response=await fetch(CONFIG.cookieUrl,{cache:"no-store"});
+      const data=await response.json();
+      cookieValue=data.cookie||"";
+    }catch(e){}
 
     if(cookieValue){
-      player.getNetworkingEngine().registerRequestFilter((type, request) => {
-        request.headers["Referer"] = "https://www.jiotv.com/";
-        request.headers["User-Agent"] = "plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
-        request.headers["Cookie"] = cookieValue;
+      player.getNetworkingEngine().registerRequestFilter((type,request)=>{
+        request.headers["Referer"]="https://www.jiotv.com/";
+        request.headers["User-Agent"]="plaYtv/7.1.5 (Linux;Android 13) ExoPlayerLib/2.11.6";
+        request.headers["Cookie"]=cookieValue;
 
-        let urlCookie = cookieValue.startsWith("__hdnea__=") ? cookieValue.substring(10) : cookieValue;
+        let urlCookie=cookieValue.startsWith("__hdnea__=")?cookieValue.substring(10):cookieValue;
 
-        if((type === shaka.net.NetworkingEngine.RequestType.MANIFEST ||
-            type === shaka.net.NetworkingEngine.RequestType.SEGMENT) &&
-           !request.uris[0].includes("__hdnea__")){
-          const sep = request.uris[0].includes("?") ? "&" : "?";
-          request.uris[0] += sep + "__hdnea__=" + urlCookie;
+        if((type===shaka.net.NetworkingEngine.RequestType.MANIFEST||
+        type===shaka.net.NetworkingEngine.RequestType.SEGMENT)&&
+        !request.uris[0].includes("__hdnea__")){
+          const sep=request.uris[0].includes("?")?"&":"?";
+          request.uris[0]+=sep+"__hdnea__="+urlCookie;
         }
       });
     }
 
     try{
       await player.load(CONFIG.streamUrl);
-      video.play().catch(() => {});
+      video.play().catch(()=>{});
     }catch(e){}
 
-    video.addEventListener("play", () => {
-      video.muted = false;
+    video.addEventListener("play",()=>{
+      video.muted=false;
     });
 
   });
